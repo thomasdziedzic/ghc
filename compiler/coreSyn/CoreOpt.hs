@@ -10,6 +10,7 @@ module CoreOpt (
 
         -- ** Join points
         joinPointBinding_maybe, joinPointBindings_maybe,
+        loopificationJoinPointBinding_maybe ,
 
         -- ** Predicates on expressions
         exprIsConApp_maybe, exprIsLiteral_maybe, exprIsLambda_maybe,
@@ -642,22 +643,41 @@ joinPointBinding_maybe bndr rhs
   = Just (bndr, rhs)
 
   | AlwaysTailCalled join_arity <- tailCallInfo (idOccInfo bndr)
-  , not (bad_unfolding join_arity (idUnfolding bndr))
+  , not (badUnfoldingForJoin join_arity bndr)
   , (bndrs, body) <- etaExpandToJoinPoint join_arity rhs
   = Just (bndr `asJoinId` join_arity, mkLams bndrs body)
 
   | otherwise
   = Nothing
 
+-- | like joinPointBinding_maybe, but looks for RecursiveTailCalled
+loopificationJoinPointBinding_maybe :: InBndr -> InExpr -> Maybe (InBndr, InExpr)
+loopificationJoinPointBinding_maybe bndr rhs
+  | not (isId bndr)
+  = Nothing
+
+  | isJoinId bndr
+  = Nothing -- do not loopificate again
+
+  | RecursiveTailCalled join_arity <- tailCallInfo (idOccInfo bndr)
+  , not (badUnfoldingForJoin join_arity bndr)
+  , (bndrs, body) <- etaExpandToJoinPoint join_arity rhs
+  = Just (bndr `asJoinId` join_arity, mkLams bndrs body)
+
+  | otherwise
+  = Nothing
+
+-- | badUnfoldingForJoin returns True if we should /not/ convert a non-join-id
+--   into a join-id, even though it is AlwaysTailCalled
+--   See Note [Join points and INLINE pragmas]
+badUnfoldingForJoin :: JoinArity -> Id -> Bool
+badUnfoldingForJoin join_arity bndr = bad_unfolding (idUnfolding bndr)
   where
-    -- bad_unfolding returns True if we should /not/ convert a non-join-id
-    -- into a join-id, even though it is AlwaysTailCalled
-    -- See Note [Join points and INLINE pragmas]
-    bad_unfolding join_arity (CoreUnfolding { uf_src = src, uf_tmpl = rhs })
+    bad_unfolding (CoreUnfolding { uf_src = src, uf_tmpl = rhs })
       = isStableSource src && join_arity > joinRhsArity rhs
-    bad_unfolding _ (DFunUnfolding {})
+    bad_unfolding (DFunUnfolding {})
       = True
-    bad_unfolding _ _
+    bad_unfolding _
       = False
 
 joinPointBindings_maybe :: [(InBndr, InExpr)] -> Maybe [(InBndr, InExpr)]

@@ -36,7 +36,8 @@ import CoreUnfold
 import CoreUtils
 import CoreArity
 import CoreOpt          ( pushCoTyArg, pushCoValArg
-                        , joinPointBinding_maybe, joinPointBindings_maybe )
+                        , joinPointBinding_maybe, joinPointBindings_maybe
+                        , loopificationJoinPointBinding_maybe )
 --import PrimOp           ( tagToEnumKey ) -- temporalily commented out. See #8326
 import Rules            ( mkRuleInfo, lookupRule, getRules )
 --import TysPrim          ( intPrimTy ) -- temporalily commented out. See #8326
@@ -1637,6 +1638,7 @@ simplRecE :: SimplEnv
 -- simplRecE is used for
 --  * non-top-level recursive lets in expressions
 simplRecE env pairs body cont
+
   | Just pairs' <- joinPointBindings_maybe pairs
   = do  { (env1, cont') <- prepareJoinCont env cont
         ; let bndrs' = map fst pairs'
@@ -1646,6 +1648,19 @@ simplRecE env pairs body cont
                 -- We add them as we go down
         ; env3 <- simplRecBind env2 NotTopLevel (Just cont') pairs'
         ; simplExprF env3 body cont' }
+
+  -- Is this a tail-recursive function that we want to loopify? Then
+  -- lets loopify it and re-analyse.
+  | [(bndr,rhs)] <- pairs
+  , Just (join_bndr, join_rhs) <- loopificationJoinPointBinding_maybe bndr rhs
+  , let Just arity = isJoinId_maybe join_bndr
+  = do  { let (join_params, _join_body) = collectNBinders arity join_rhs
+        ; let bndr' = zapFragileIdInfo bndr -- TODO: What do we have to zap here?
+        ; let rhs' = mkLams join_params $
+                     mkLetRec [(join_bndr,join_rhs)] $
+                     mkVarApps (Var join_bndr) join_params
+        ; simplNonRecE env bndr' (rhs', env) ([], body) cont
+        }
 
   | otherwise
   = do  { let bndrs = map fst pairs

@@ -2667,6 +2667,8 @@ tagRecBinders lvl body_uds triples
         , [bndr] <- bndrs
         , let occ_rhs = lookupDetails unadj_uds_rhss bndr
         , AlwaysTailCalled arity <- tailCallInfo occ_rhs
+         --  Could do better, see note [Excess polymorphism and join points]
+        , isValidJoinPointType arity (idType bndr)
         = let occ   = lookupDetails adj_uds bndr
               occ'  = markRecursiveTailCalled arity occ
               bndr' = setIdOccInfo bndr occ'

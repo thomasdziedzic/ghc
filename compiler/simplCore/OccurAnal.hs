@@ -2660,7 +2660,7 @@ tagRecBinders lvl body_uds triples
 
      -- 4. Tag each binder with its adjusted details
      bndrs'
-        -- 4a. If this is the only one function, not a join-point already
+        -- 4a. If this is the only function, not a join-point already
         --     and the _recursive calls_ are all tail calls, then the simplifier
         --     can loopify it with a local joinrec. Mark it as such.
         | not will_be_joins
@@ -2681,7 +2681,6 @@ tagRecBinders lvl body_uds triples
      -- 5. Drop the binders from the adjusted details and return
      usage'    = adj_uds `delDetailsList` bndrs
    in
-   pprTrace "tagRecBinders" (ppr bndrs <+> ppr (map idOccInfo bndrs') <+> ppr unadj_uds_rhss) $
    (usage', bndrs')
 
 setBinderOcc :: OccInfo -> CoreBndr -> CoreBndr

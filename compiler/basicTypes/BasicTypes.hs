@@ -72,7 +72,7 @@ module BasicTypes(
         OneBranch, oneBranch, notOneBranch,
         InterestingCxt,
         TailCallInfo(..), tailCallInfo, zapOccTailCallInfo,
-        isAlwaysTailCalled,
+        isAlwaysTailCalled, isSometimesTailCalled,
 
         EP(..),
 
@@ -951,6 +951,12 @@ isAlwaysTailCalled :: OccInfo -> Bool
 isAlwaysTailCalled occ
   = case tailCallInfo occ of AlwaysTailCalled{}     -> True
                              RecursiveTailCalled {} -> False
+                             NoTailCallInfo         -> False
+
+isSometimesTailCalled :: OccInfo -> Bool
+isSometimesTailCalled occ
+  = case tailCallInfo occ of AlwaysTailCalled{}     -> True
+                             RecursiveTailCalled {} -> True
                              NoTailCallInfo         -> False
 
 instance Outputable TailCallInfo where

@@ -2660,15 +2660,17 @@ tagRecBinders lvl body_uds triples
 
      -- 4. Tag each binder with its adjusted details
      bndrs'
-        -- 4a. If this is only one function, and the recursive calls are
-        --     tail calls, then the simplifier turn it into a non-recursive function
-        --     with a local joinrec.
-        | [bndr] <- bndrs
+        -- 4a. If this is the only one function, not a join-point already
+        --     and the _recursive calls_ are all tail calls, then the simplifier
+        --     can loopify it with a local joinrec. Mark it as such.
+        | not will_be_joins
+        , [bndr] <- bndrs
         , let occ_rhs = lookupDetails unadj_uds_rhss bndr
         , AlwaysTailCalled arity <- tailCallInfo occ_rhs
-        = let occ = lookupDetails adj_uds bndr
-              occ' = markRecursiveTailCalled arity occ
-          in [ setBinderOcc occ' bndr ]
+        = let occ   = lookupDetails adj_uds bndr
+              occ'  = markRecursiveTailCalled arity occ
+              bndr' = setIdOccInfo bndr occ'
+          in [bndr']
         -- 4b. Otherwise, just use the adjusted details
         | otherwise
         = [ setBinderOcc (lookupDetails adj_uds bndr) bndr
@@ -2677,6 +2679,7 @@ tagRecBinders lvl body_uds triples
      -- 5. Drop the binders from the adjusted details and return
      usage'    = adj_uds `delDetailsList` bndrs
    in
+   pprTrace "tagRecBinders" (ppr bndrs <+> ppr (map idOccInfo bndrs') <+> ppr unadj_uds_rhss) $
    (usage', bndrs')
 
 setBinderOcc :: OccInfo -> CoreBndr -> CoreBndr

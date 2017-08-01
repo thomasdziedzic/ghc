@@ -659,10 +659,13 @@ loopificationJoinPointBinding_maybe bndr rhs
   | isJoinId bndr
   = Nothing -- do not loopificate again
 
-  | RecursiveTailCalled join_arity <- tailCallInfo (idOccInfo bndr)
+  | let occ = idOccInfo bndr
+  , RecursiveTailCalled join_arity <- tailCallInfo occ
   , not (badUnfoldingForJoin join_arity bndr)
   , (bndrs, body) <- etaExpandToJoinPoint join_arity rhs
-  = Just (bndr `asJoinId` join_arity, mkLams bndrs body)
+  = let occ' = occ { occ_tail = AlwaysTailCalled join_arity }
+        bndr' = setIdOccInfo bndr occ'
+    in  Just (bndr' `asJoinId` join_arity, mkLams bndrs body)
 
   | otherwise
   = Nothing

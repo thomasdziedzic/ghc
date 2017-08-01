@@ -266,6 +266,8 @@ simplTopBinds env0 binds0
     simpl_binds env (bind:binds) = do { env' <- simpl_bind env bind
                                       ; simpl_binds env' binds }
 
+    simpl_bind env bind | Just bind' <- maybeLoopify bind
+                        = simpl_bind env bind'
     simpl_bind env (Rec pairs)  = simplRecBind env TopLevel Nothing pairs
     simpl_bind env (NonRec b r) = do { (env', b') <- addBndrRules env b (lookupRecBndr env b)
                                      ; simplRecOrTopPair env' TopLevel
@@ -1127,6 +1129,10 @@ simplExprF1 env (Case scrut bndr _ alts) cont
              env''   = env `addLetFloats` env'
        ; rebuildCase env'' scrut'' bndr alts cont }
 
+simplExprF1 env (Let bind body) cont
+  | Just bind' <- maybeLoopify bind
+  = simplExprF1 env (Let bind' body) cont
+
 simplExprF1 env (Let (Rec pairs) body) cont
   = simplRecE env pairs body cont
 
@@ -1638,7 +1644,6 @@ simplRecE :: SimplEnv
 -- simplRecE is used for
 --  * non-top-level recursive lets in expressions
 simplRecE env pairs body cont
-
   | Just pairs' <- joinPointBindings_maybe pairs
   = do  { (env1, cont') <- prepareJoinCont env cont
         ; let bndrs' = map fst pairs'
@@ -1649,19 +1654,6 @@ simplRecE env pairs body cont
         ; env3 <- simplRecBind env2 NotTopLevel (Just cont') pairs'
         ; simplExprF env3 body cont' }
 
-  -- Is this a tail-recursive function that we want to loopify? Then
-  -- lets loopify it and re-analyse.
-  | [(bndr,rhs)] <- pairs
-  , Just (join_bndr, join_rhs) <- loopificationJoinPointBinding_maybe bndr rhs
-  , let Just arity = isJoinId_maybe join_bndr
-  = do  { let (join_params, _join_body) = collectNBinders arity join_rhs
-        ; let bndr' = zapFragileIdInfo bndr -- TODO: What do we have to zap here?
-        ; let rhs' = mkLams join_params $
-                     mkLetRec [(join_bndr,join_rhs)] $
-                     mkVarApps (Var join_bndr) join_params
-        ; simplNonRecE env bndr' (rhs', env) ([], body) cont
-        }
-
   | otherwise
   = do  { let bndrs = map fst pairs
         ; MASSERT(all (not . isJoinId) bndrs)
@@ -1670,6 +1662,22 @@ simplRecE env pairs body cont
                 -- We add them as we go down
         ; env2 <- simplRecBind env1 NotTopLevel Nothing pairs
         ; simplExprF env2 body cont }
+
+
+-- Is this a tail-recursive function that we want to loopify? Then
+-- lets loopify it and simplify that
+maybeLoopify :: InBind -> Maybe InBind
+maybeLoopify (Rec [(bndr, rhs)])
+  | Just (join_bndr, join_rhs) <- loopificationJoinPointBinding_maybe bndr rhs
+  = do  { let Just arity = isJoinId_maybe join_bndr
+        ; let (join_params, _join_body) = collectNBinders arity join_rhs
+        ; let bndr' = zapFragileIdInfo bndr -- TODO: What do we have to zap here?
+        ; let rhs' = mkLams join_params $
+                     mkLetRec [(join_bndr,join_rhs)] $
+                     mkVarApps (Var join_bndr) join_params
+        ; Just (NonRec bndr' rhs')
+        }
+maybeLoopify _ = Nothing
 
 {-
 ************************************************************************

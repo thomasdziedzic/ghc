@@ -2633,8 +2633,9 @@ tagRecBinders lvl body_uds triples
 
      -- 1. Determine join-point-hood of whole group, as determined by
      --    the *unadjusted* usage details
-     unadj_uds     = body_uds +++ combineUsageDetailsList rhs_udss
-     will_be_joins = decideJoinPointHood lvl unadj_uds bndrs
+     unadj_uds_rhss = combineUsageDetailsList rhs_udss
+     unadj_uds      = body_uds +++ unadj_uds_rhss
+     will_be_joins  = decideJoinPointHood lvl unadj_uds bndrs
 
      -- 2. Adjust usage details of each RHS, taking into account the
      --    join-point-hood decision
@@ -2658,8 +2659,20 @@ tagRecBinders lvl body_uds triples
      adj_uds   = body_uds +++ combineUsageDetailsList rhs_udss'
 
      -- 4. Tag each binder with its adjusted details
-     bndrs'    = [ setBinderOcc (lookupDetails adj_uds bndr) bndr
-                 | bndr <- bndrs ]
+     bndrs'
+        -- 4a. If this is only one function, and the recursive calls are
+        --     tail calls, then the simplifier turn it into a non-recursive function
+        --     with a local joinrec.
+        | [bndr] <- bndrs
+        , let occ_rhs = lookupDetails unadj_uds_rhss bndr
+        , AlwaysTailCalled arity <- tailCallInfo occ_rhs
+        = let occ = lookupDetails adj_uds bndr
+              occ' = markRecursiveTailCalled arity occ
+          in [ setBinderOcc occ' bndr ]
+        -- 4b. Otherwise, just use the adjusted details
+        | otherwise
+        = [ setBinderOcc (lookupDetails adj_uds bndr) bndr
+          | bndr <- bndrs ]
 
      -- 5. Drop the binders from the adjusted details and return
      usage'    = adj_uds `delDetailsList` bndrs
@@ -2743,6 +2756,10 @@ markInsideLam occ             = occ
 
 markNonTailCalled IAmDead = IAmDead
 markNonTailCalled occ     = occ { occ_tail = NoTailCallInfo }
+
+markRecursiveTailCalled :: Arity -> OccInfo -> OccInfo
+markRecursiveTailCalled _     IAmDead = IAmDead
+markRecursiveTailCalled arity occ     = occ { occ_tail = RecursiveTailCalled arity }
 
 addOccInfo, orOccInfo :: OccInfo -> OccInfo -> OccInfo
 

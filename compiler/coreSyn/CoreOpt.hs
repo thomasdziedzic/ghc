@@ -651,7 +651,8 @@ joinPointBinding_maybe bndr rhs
   = Nothing
 
 -- | like joinPointBinding_maybe, but looks for RecursiveTailCalled
-loopificationJoinPointBinding_maybe :: InBndr -> InExpr -> Maybe (InBndr, InExpr)
+-- Returns both the new outer and the new inner binder
+loopificationJoinPointBinding_maybe :: InBndr -> InExpr -> Maybe (InBndr, InBndr, InExpr)
 loopificationJoinPointBinding_maybe bndr rhs
   | not (isId bndr)
   = Nothing
@@ -664,8 +665,15 @@ loopificationJoinPointBinding_maybe bndr rhs
   , not (badUnfoldingForJoin join_arity bndr)
   , (bndrs, body) <- etaExpandToJoinPoint join_arity rhs
   = let occ' = occ { occ_tail = AlwaysTailCalled join_arity }
-        bndr' = setIdOccInfo bndr occ'
-    in  Just (bndr' `asJoinId` join_arity, mkLams bndrs body)
+        -- What all do we have to zap?
+        join_bndr = (`asJoinId` join_arity) $
+                     (`setIdOccInfo` occ') $
+                     zapFragileIdInfo $
+                     localiseId $
+                     bndr
+        -- RULES etc stay with bindr'
+        bndr' = zapIdTailCallInfo bndr
+    in  Just (bndr', join_bndr, mkLams bndrs body)
 
   | otherwise
   = Nothing

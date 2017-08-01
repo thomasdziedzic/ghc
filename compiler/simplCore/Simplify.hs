@@ -1668,10 +1668,9 @@ simplRecE env pairs body cont
 -- lets loopify it and simplify that
 maybeLoopify :: InBind -> Maybe InBind
 maybeLoopify (Rec [(bndr, rhs)])
-  | Just (join_bndr, join_rhs) <- loopificationJoinPointBinding_maybe bndr rhs
+  | Just (bndr', join_bndr, join_rhs) <- loopificationJoinPointBinding_maybe bndr rhs
   = do  { let Just arity = isJoinId_maybe join_bndr
         ; let (join_params, _join_body) = collectNBinders arity join_rhs
-        ; let bndr' = zapFragileIdInfo bndr -- TODO: What do we have to zap here?
         ; let rhs' = mkLams join_params $
                      mkLetRec [(join_bndr,join_rhs)] $
                      mkVarApps (Var join_bndr) join_params

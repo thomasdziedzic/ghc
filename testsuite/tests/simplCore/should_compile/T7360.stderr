@@ -1,7 +1,7 @@
 
 ==================== Tidy Core ====================
 Result size of Tidy Core
-  = {terms: 114, types: 53, coercions: 0, joins: 0/0}
+  = {terms: 125, types: 69, coercions: 0, joins: 1/1}
 
 -- RHS size: {terms: 6, types: 3, coercions: 0, joins: 0/0}
 T7360.$WFoo3 [InlPrag=INLINE[2]] :: Int -> Foo
@@ -47,32 +47,49 @@ T7360.fun4 :: Int
          WorkFree=True, Expandable=True, Guidance=IF_ARGS [] 10 20}]
 T7360.fun4 = GHC.Types.I# 0#
 
--- RHS size: {terms: 16, types: 13, coercions: 0, joins: 0/0}
-fun2 :: forall a. [a] -> ((), Int)
+-- RHS size: {terms: 27, types: 29, coercions: 0, joins: 1/1}
+fun2 [InlPrag=INLINE[0]] :: forall a. [a] -> ((), Int)
 [GblId,
  Arity=1,
  Str=<L,1*U>m,
  Unf=Unf{Src=InlineStable, TopLvl=True, Value=True, ConLike=True,
          WorkFree=True, Expandable=True,
          Guidance=ALWAYS_IF(arity=1,unsat_ok=True,boring_ok=False)
-         Tmpl= \ (@ a) (x [Occ=Once!] :: [a]) ->
+         Tmpl= \ (@ a) (w [Occ=Once!] :: [a]) ->
                  (T7360.fun5,
-                  case x of wild {
+                  case w of wild {
                     [] -> T7360.fun4;
                     : _ [Occ=Dead] _ [Occ=Dead] ->
-                      case GHC.List.$wlenAcc @ a wild 0# of ww2 { __DEFAULT ->
-                      GHC.Types.I# ww2
-                      }
+                      joinrec {
+                        $wlenAcc1 [InlPrag=[0], Occ=LoopBreakerT[3]]
+                          :: forall a1. [a1] -> GHC.Prim.Int# -> Int
+                        [LclId[JoinId(3)], Arity=2, Str=<S,1*U><L,U>m, Unf=OtherCon []]
+                        $wlenAcc1 (@ a1)
+                                  (w1 [Occ=Once!] :: [a1])
+                                  (ww [Occ=Once*] :: GHC.Prim.Int#)
+                          = case w1 of {
+                              [] -> GHC.Types.I# ww;
+                              : _ [Occ=Dead] ys [Occ=Once] ->
+                                jump $wlenAcc1 @ a1 ys (GHC.Prim.+# ww 1#)
+                            }; } in
+                      jump $wlenAcc1 @ a wild 0#
                   })}]
 fun2
-  = \ (@ a) (x :: [a]) ->
+  = \ (@ a) (w :: [a]) ->
       (T7360.fun5,
-       case x of wild {
+       case w of wild {
          [] -> T7360.fun4;
          : ds ds1 ->
-           case GHC.List.$wlenAcc @ a wild 0# of ww2 { __DEFAULT ->
-           GHC.Types.I# ww2
-           }
+           joinrec {
+             $wlenAcc1 [InlPrag=[0], Occ=LoopBreaker]
+               :: forall a1. [a1] -> GHC.Prim.Int# -> Int
+             [LclId[JoinId(3)], Arity=2, Str=<S,1*U><S,U>m, Unf=OtherCon []]
+             $wlenAcc1 (@ a1) (w1 :: [a1]) (ww :: GHC.Prim.Int#)
+               = case w1 of {
+                   [] -> GHC.Types.I# ww;
+                   : ds2 ys -> jump $wlenAcc1 @ a1 ys (GHC.Prim.+# ww 1#)
+                 }; } in
+           jump $wlenAcc1 @ a wild 0#
        })
 
 -- RHS size: {terms: 1, types: 0, coercions: 0, joins: 0/0}

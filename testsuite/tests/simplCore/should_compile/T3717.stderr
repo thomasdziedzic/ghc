@@ -1,7 +1,7 @@
 
 ==================== Tidy Core ====================
 Result size of Tidy Core
-  = {terms: 36, types: 15, coercions: 0, joins: 0/0}
+  = {terms: 35, types: 15, coercions: 0, joins: 1/1}
 
 -- RHS size: {terms: 1, types: 0, coercions: 0, joins: 0/0}
 T3717.$trModule4 :: GHC.Prim.Addr#
@@ -44,24 +44,20 @@ T3717.$trModule :: GHC.Types.Module
  Str=m,
  Unf=Unf{Src=<vanilla>, TopLvl=True, Value=True, ConLike=True,
          WorkFree=True, Expandable=True, Guidance=IF_ARGS [] 10 30}]
-T3717.$trModule =
-  GHC.Types.Module T3717.$trModule3 T3717.$trModule1
+T3717.$trModule
+  = GHC.Types.Module T3717.$trModule3 T3717.$trModule1
 
-Rec {
--- RHS size: {terms: 10, types: 2, coercions: 0, joins: 0/0}
-T3717.$wfoo [InlPrag=[0], Occ=LoopBreaker]
-  :: GHC.Prim.Int# -> GHC.Prim.Int#
-[GblId, Arity=1, Caf=NoCafRefs, Str=<S,1*U>]
-T3717.$wfoo =
-  \ (ww :: GHC.Prim.Int#) ->
-    case ww of ds {
-      __DEFAULT -> T3717.$wfoo (GHC.Prim.-# ds 1#);
-      0# -> 0#
-    }
-end Rec }
+-- RHS size: {terms: 2, types: 0, coercions: 0, joins: 0/0}
+T3717.foo1 :: Int
+[GblId,
+ Caf=NoCafRefs,
+ Str=m,
+ Unf=Unf{Src=<vanilla>, TopLvl=True, Value=True, ConLike=True,
+         WorkFree=True, Expandable=True, Guidance=IF_ARGS [] 10 20}]
+T3717.foo1 = GHC.Types.I# 0#
 
--- RHS size: {terms: 10, types: 4, coercions: 0, joins: 0/0}
-foo [InlPrag=INLINE[0]] :: Int -> Int
+-- RHS size: {terms: 17, types: 7, coercions: 0, joins: 1/1}
+foo :: Int -> Int
 [GblId,
  Arity=1,
  Caf=NoCafRefs,
@@ -69,15 +65,31 @@ foo [InlPrag=INLINE[0]] :: Int -> Int
  Unf=Unf{Src=InlineStable, TopLvl=True, Value=True, ConLike=True,
          WorkFree=True, Expandable=True,
          Guidance=ALWAYS_IF(arity=1,unsat_ok=True,boring_ok=False)
-         Tmpl= \ (w [Occ=Once!] :: Int) ->
-                 case w of { GHC.Types.I# ww1 [Occ=Once] ->
-                 case T3717.$wfoo ww1 of ww2 { __DEFAULT -> GHC.Types.I# ww2 }
-                 }}]
-foo =
-  \ (w :: Int) ->
-    case w of { GHC.Types.I# ww1 ->
-    case T3717.$wfoo ww1 of ww2 { __DEFAULT -> GHC.Types.I# ww2 }
-    }
+         Tmpl= \ (ds [Occ=Once] :: Int) ->
+                 joinrec {
+                   foo2 [Occ=LoopBreakerT[1]] :: Int -> Int
+                   [LclId[JoinId(1)], Arity=1, Unf=OtherCon []]
+                   foo2 (ds1 [Occ=Once!] :: Int)
+                     = case ds1 of { GHC.Types.I# ds2 [Occ=Once!] ->
+                       case ds2 of ds3 {
+                         __DEFAULT -> jump foo2 (GHC.Types.I# (GHC.Prim.-# ds3 1#));
+                         0# -> T3717.foo1
+                       }
+                       }; } in
+                 jump foo2 ds}]
+foo
+  = \ (ds :: Int) ->
+      case ds of { GHC.Types.I# ww1 ->
+      joinrec {
+        $wfoo [InlPrag=[0], Occ=LoopBreaker] :: GHC.Prim.Int# -> Int
+        [LclId[JoinId(1)], Arity=1, Str=<S,1*U>m, Unf=OtherCon []]
+        $wfoo (ww2 :: GHC.Prim.Int#)
+          = case ww2 of ds1 {
+              __DEFAULT -> jump $wfoo (GHC.Prim.-# ds1 1#);
+              0# -> T3717.foo1
+            }; } in
+      jump $wfoo ww1
+      }
 
 
 

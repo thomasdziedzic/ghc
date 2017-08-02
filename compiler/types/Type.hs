@@ -2445,11 +2445,21 @@ setJoinResTy :: Int  -- Number of binders to skip
              -> Type -- New type
 -- INVARIANT: If any of the first n binders are foralls, those tyvars cannot
 -- appear in the original result type. See isValidJoinPointType.
+--
+-- When we set the return type under a forall, avoid capture!
 setJoinResTy orig_ar new_res_ty orig_ty
-  = go orig_ar orig_ty
+  = go init_subst orig_ar orig_ty
   where
-    go 0 _  = new_res_ty
-    go n ty | Just (arg_bndr, res_ty) <- splitPiTy_maybe ty
-            = mkPiTy arg_bndr (go (n-1) res_ty)
-            | otherwise
-            = pprPanic "setJoinResTy" (ppr orig_ar <+> ppr orig_ty)
+    init_subst :: TCvSubst
+    init_subst = mkEmptyTCvSubst (mkInScopeSet (tyCoVarsOfType new_res_ty))
+
+    go _     0 _  = new_res_ty
+    go subst n ty
+        | Just (t, ty') <- splitForAllTy_maybe ty
+        , let (subst', t') = substTyVarBndr subst t
+        = mkForAllTy t' Inferred (go subst' (n-1) ty')
+        | Just (arg_ty, ty') <- splitFunTy_maybe ty
+        , let arg_ty' = substTy subst arg_ty
+        = mkFunTy arg_ty' (go subst (n-1) ty')
+        | otherwise
+        = pprPanic "setJoinResTy" (ppr orig_ar <+> ppr orig_ty)

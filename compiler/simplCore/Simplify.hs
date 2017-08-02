@@ -1671,9 +1671,13 @@ maybeLoopify (Rec [(bndr, rhs)])
   | Just (bndr', join_bndr, join_rhs) <- loopificationJoinPointBinding_maybe bndr rhs
   = do  { let Just arity = isJoinId_maybe join_bndr
         ; let (join_params, _join_body) = collectNBinders arity join_rhs
-        ; let rhs' = mkLams join_params $
+        ; let join_params' =
+                [ if isId var then zapIdOccInfo var else var
+                | var <- join_params ]
+            -- Some might be marked as dead (in the RHS), but there are not dead here
+        ; let rhs' = mkLams join_params' $
                      mkLetRec [(join_bndr,join_rhs)] $
-                     mkVarApps (Var join_bndr) join_params
+                     mkVarApps (Var join_bndr) join_params'
         ; Just (NonRec bndr' rhs')
         }
 maybeLoopify _ = Nothing

@@ -196,7 +196,7 @@ test('T3294',
            # 2013-11-13: 1478325844  (x86/Windows, 64bit machine)
            # 2014-01-12: 1565185140  (x86/Linux)
            # 2013-04-04: 1377050640  (x86/Windows, 64bit machine)
-           (wordsize(64), 2253557280, 5)]),
+           (wordsize(64), 2419213272, 5)]),
             # old:        1357587088 (amd64/Linux)
             # 29/08/2012: 2961778696 (amd64/Linux)
             # (^ increase due to new codegen, see #7198)
@@ -211,6 +211,7 @@ test('T3294',
             # 2016-07-11: 2739731144 (Windows) after fix for #12227 (ignoring)
             # 2017-02-17: 2758641264 (amd64/Linux) (Type indexed Typeable)
             # 2017-05-14: 2253557280 (amd64/Linux) Two-pass CmmLayoutStack
+            # 2017-08-02: 2419213272 (amd64/Linux) Loopification
       conf_3294,
 
       # Use `+RTS -G1` for more stable residency measurements. Note [residency].
@@ -944,7 +945,7 @@ test('T9233',
 test('T10370',
      [ only_ways(['optasm']),
        compiler_stats_num_field('max_bytes_used', # Note [residency]
-          [(wordsize(64), 31524048, 15),
+          [(wordsize(64), 50774760, 15),
           # 2015-10-22    19548720
           # 2016-02-24    22823976   Changing Levity to RuntimeRep; not sure why this regresses though, even after some analysis
           # 2016-04-14    28256896   final demand analyzer run
@@ -961,13 +962,14 @@ test('T10370',
           # 2017-02-27    43455848   Likely drift from recent simplifier improvements
           # 2017-02-25    41291976   Early inline patch
           # 2017-04-30    31524048   Fix leaks in tidy unfoldings
+          # 2017-08-02    50774760   Loopificatoin
 
            (wordsize(32), 19276304, 15),
           # 2015-10-22    11371496
           # 2017-03-24    19276304 (x86/Linux, 64-bit machine)
           ]),
        compiler_stats_num_field('peak_megabytes_allocated', # Note [residency]
-          [(wordsize(64), 117, 15),
+          [(wordsize(64), 191, 15),
           # 2015-10-22     76
           # 2016-04-14    101 final demand analyzer run
           # 2016-08-08    121 see above
@@ -975,6 +977,7 @@ test('T10370',
           # 2017-02-17    187 Type-indexed Typeable
           # 2017-02-25    154 Early inline patch
           # 2017-04-30    117 Fix leaks in tidy unfoldings
+          # 2017-08-02    191 Loopification
            (wordsize(32),  69, 15),
           # 2015-10-22     39
           # 2017-03-24     69
@@ -1163,7 +1166,9 @@ test('Naperian',
      [ reqlib('vector'),
        only_ways(['optasm']),
        compiler_stats_num_field('bytes allocated',
-          [(wordsize(64), 2381935784, 10)])
+          [(wordsize(64),   49646368, 10)])
+	  # initial       2381935784
+	  # 2017-08-01      49646368  loopification (fishy)
      ],
      compile,
      [''])

@@ -33,6 +33,9 @@ Example result:
   in …
 
 Now `t` is no longer in a recursive function, and good things happen!
+
+In the final simplifier pass, we inline these exit join points again,
+see Note [Do not inline exit join points].
 -}
 
 import GhcPrelude
@@ -400,4 +403,7 @@ To prevent inlining, we check for that in `preInlineUnconditionally` directly.
 For `postInlineUnconditionally` and unfolding-based inlining, the function
 `simplLetUnfolding` simply gives exit join points no unfolding, which prevents
 this kind of inlining.
+
+In the `final` run of the simplifier, we do allow inlining of exit join points,
+via a `SimplifierMode` flag.
 -}
